@@ -1,0 +1,3206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neon Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background: #0a0a0f;
+        overflow-x: hidden;
+      }
+      .glass {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .glass-strong {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .gradient-text {
+        background: linear-gradient(135deg, #00f0ff, #bc13fe, #ff2d95);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .bg-orb {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.25;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .expense-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .expense-card:hover {
+        transform: translateX(8px);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      @keyframes confetti {
+        0% {
+          transform: translateY(100vh) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+      .confetti-piece {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        animation: confetti 3s ease-out forwards;
+        z-index: 9999;
+        pointer-events: none;
+      }
+      .tab-btn {
+        position: relative;
+        transition: all 0.3s ease;
+      }
+      .tab-btn::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 50%;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #00f0ff, #bc13fe);
+        transition: all 0.3s ease;
+        transform: translateX(-50%);
+      }
+      .tab-btn.active::after {
+        width: 80%;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.3);
+      }
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-20px);
+        }
+      }
+      .animate-float {
+        animation: float 6s ease-in-out infinite;
+      }
+      .progress-ring-circle {
+        transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef, useMemo, useCallback } = React;
+      const { motion, AnimatePresence } = window.Motion;
+
+      // ─── Icons ─────────────────────────────────────────────────────
+      const Icon = ({ name, className = "w-5 h-5" }) => {
+        const icons = {
+          food: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
+          ),
+          transport: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
+            </svg>
+          ),
+          shopping: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              />
+            </svg>
+          ),
+          entertainment: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          ),
+          health: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          ),
+          bills: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+          ),
+          other: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
+              />
+            </svg>
+          ),
+          plus: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          ),
+          trash: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          ),
+          chart: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+          ),
+          list: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 10h16M4 14h16M4 18h16"
+              />
+            </svg>
+          ),
+          target: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
+            </svg>
+          ),
+          calendar: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+          ),
+          trophy: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+              />
+            </svg>
+          ),
+          wallet: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
+          ),
+          close: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          ),
+          edit: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          ),
+          arrowUp: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            </svg>
+          ),
+          arrowDown: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
+              />
+            </svg>
+          ),
+          filter: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+          ),
+          search: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          ),
+          bell: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
+            </svg>
+          ),
+          settings: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          ),
+          export: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+          ),
+          check: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          ),
+          tag: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              />
+            </svg>
+          ),
+          receipt: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"
+              />
+            </svg>
+          ),
+          piggy: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          ),
+          trend: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            </svg>
+          ),
+          star: (
+            <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          ),
+          zap: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
+            </svg>
+          ),
+          flame: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"
+              />
+            </svg>
+          ),
+          crown: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+              />
+            </svg>
+          ),
+          diamond: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+              />
+            </svg>
+          ),
+          pin: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+          ),
+          unpin: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
+            </svg>
+          ),
+          duplicate: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          ),
+          history: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          ),
+          location: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          ),
+          ai: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
+            </svg>
+          ),
+          split: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+              />
+            </svg>
+          ),
+          recurring: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          ),
+          budget: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          ),
+          eye: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              />
+            </svg>
+          ),
+          eyeOff: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+              />
+            </svg>
+          ),
+          grid: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+              />
+            </svg>
+          ),
+          barChart: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+          ),
+          pieChart: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
+              />
+            </svg>
+          ),
+          lineChart: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+              />
+            </svg>
+          ),
+          dollar: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          ),
+          gift: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+              />
+            </svg>
+          ),
+          rocket: (
+            <svg
+              className={className}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
+              />
+            </svg>
+          ),
+        };
+        return icons[name] || icons.other;
+      };
+
+      // ─── Constants ─────────────────────────────────────────────────
+      const CATEGORIES = [
+        { id: "food", name: "Food & Dining", icon: "food", color: "#ff2d95" },
+        {
+          id: "transport",
+          name: "Transport",
+          icon: "transport",
+          color: "#00f0ff",
+        },
+        {
+          id: "shopping",
+          name: "Shopping",
+          icon: "shopping",
+          color: "#bc13fe",
+        },
+        {
+          id: "entertainment",
+          name: "Entertainment",
+          icon: "entertainment",
+          color: "#ff9500",
+        },
+        { id: "health", name: "Health", icon: "health", color: "#00ff88" },
+        {
+          id: "bills",
+          name: "Bills & Utilities",
+          icon: "bills",
+          color: "#ff6b6b",
+        },
+        { id: "other", name: "Other", icon: "other", color: "#a0a0a0" },
+      ];
+
+      const PAYMENT_METHODS = [
+        { id: "cash", name: "Cash", icon: "💵" },
+        { id: "card", name: "Credit Card", icon: "💳" },
+        { id: "digital", name: "Digital Wallet", icon: "📱" },
+        { id: "bank", name: "Bank Transfer", icon: "🏦" },
+      ];
+
+      const BADGES = [
+        {
+          id: "first",
+          name: "First Step",
+          icon: "star",
+          color: "#ffd700",
+          desc: "Add your first expense",
+        },
+        {
+          id: "streak3",
+          name: "3-Day Streak",
+          icon: "flame",
+          color: "#ff6b35",
+          desc: "Log expenses 3 days in a row",
+        },
+        {
+          id: "streak7",
+          name: "Week Warrior",
+          icon: "zap",
+          color: "#00f0ff",
+          desc: "7-day logging streak",
+        },
+        {
+          id: "streak30",
+          name: "Month Master",
+          icon: "crown",
+          color: "#bc13fe",
+          desc: "30-day logging streak",
+        },
+        {
+          id: "savvy",
+          name: "Budget Savvy",
+          icon: "piggy",
+          color: "#00ff88",
+          desc: "Stay under budget for a week",
+        },
+        {
+          id: "explorer",
+          name: "Category Explorer",
+          icon: "rocket",
+          color: "#ff2d95",
+          desc: "Use all 7 categories",
+        },
+        {
+          id: "thrifty",
+          name: "Thrifty",
+          icon: "diamond",
+          color: "#00f0ff",
+          desc: "Spend under $20 in a day",
+        },
+        {
+          id: "analyst",
+          name: "Data Analyst",
+          icon: "chart",
+          color: "#ff9500",
+          desc: "View all chart types",
+        },
+      ];
+
+      const RECURRING_OPTIONS = [
+        { id: "none", name: "One-time" },
+        { id: "daily", name: "Daily" },
+        { id: "weekly", name: "Weekly" },
+        { id: "biweekly", name: "Bi-weekly" },
+        { id: "monthly", name: "Monthly" },
+        { id: "yearly", name: "Yearly" },
+      ];
+
+      // ─── Local Storage Helpers ───────────────────────────────────
+      const STORAGE_KEY = "neon-expense-tracker-state-v1";
+
+      const getDefaultState = () => ({
+        expenses: [],
+        budget: 2000,
+        earnedBadges: [],
+        streak: 0,
+        hideAmounts: false,
+        notifications: [],
+        activeTab: "dashboard",
+        timeRange: "week",
+        chartType: "doughnut",
+        searchQuery: "",
+        filterCategory: "all",
+        sortBy: "date-desc",
+      });
+
+      const loadStoredState = () => {
+        try {
+          const stored = JSON.parse(
+            localStorage.getItem(STORAGE_KEY) || "null",
+          );
+          if (!stored) return getDefaultState();
+
+          const hasDemoData =
+            Array.isArray(stored.expenses) &&
+            stored.expenses.some((exp) => exp?.id?.startsWith("demo-"));
+          if (hasDemoData) {
+            localStorage.removeItem(STORAGE_KEY);
+            return getDefaultState();
+          }
+
+          const normalized = {
+            ...getDefaultState(),
+            ...stored,
+            expenses: Array.isArray(stored.expenses)
+              ? stored.expenses.filter(
+                  (exp) =>
+                    exp && typeof exp.amount === "number" && exp.description,
+                )
+              : [],
+            earnedBadges: Array.isArray(stored.earnedBadges)
+              ? stored.earnedBadges
+              : [],
+            notifications: Array.isArray(stored.notifications)
+              ? stored.notifications
+              : [],
+          };
+
+          return normalized;
+        } catch (error) {
+          console.warn("Unable to load saved expense data:", error);
+          return getDefaultState();
+        }
+      };
+
+      const saveStoredState = (state) => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.warn("Unable to save expense data:", error);
+        }
+      };
+
+      // ─── Utilities ─────────────────────────────────────────────────
+      const formatCurrency = (amount) =>
+        new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(amount);
+
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (dateStr === today.toISOString().split("T")[0]) return "Today";
+        if (dateStr === yesterday.toISOString().split("T")[0])
+          return "Yesterday";
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+      };
+
+      // ─── Animated Counter ──────────────────────────────────────────
+      const AnimatedCounter = ({
+        value,
+        prefix = "",
+        suffix = "",
+        className = "",
+      }) => {
+        const [displayValue, setDisplayValue] = useState(0);
+        const prevValue = useRef(0);
+        useEffect(() => {
+          const start = prevValue.current,
+            end = value,
+            duration = 800,
+            startTime = performance.now();
+          const animate = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            setDisplayValue(start + (end - start) * easeOut);
+            if (progress < 1) requestAnimationFrame(animate);
+          };
+          requestAnimationFrame(animate);
+          prevValue.current = value;
+        }, [value]);
+        return (
+          <span className={className}>
+            {prefix}
+            {Math.round(displayValue).toLocaleString()}
+            {suffix}
+          </span>
+        );
+      };
+
+      // ─── Confetti ──────────────────────────────────────────────────
+      const triggerConfetti = () => {
+        const colors = [
+          "#ff2d95",
+          "#00f0ff",
+          "#bc13fe",
+          "#00ff88",
+          "#ff9500",
+          "#ffd700",
+        ];
+        for (let i = 0; i < 60; i++) {
+          const el = document.createElement("div");
+          el.className = "confetti-piece";
+          el.style.left = Math.random() * 100 + "vw";
+          el.style.top = "100vh";
+          el.style.backgroundColor =
+            colors[Math.floor(Math.random() * colors.length)];
+          el.style.borderRadius = Math.random() > 0.5 ? "50%" : "0";
+          el.style.width = Math.random() * 12 + 6 + "px";
+          el.style.height = Math.random() * 12 + 6 + "px";
+          el.style.animationDelay = Math.random() * 1.5 + "s";
+          el.style.animationDuration = Math.random() * 2 + 2 + "s";
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 5000);
+        }
+      };
+
+      // ─── Progress Ring ─────────────────────────────────────────────
+      const ProgressRing = ({
+        progress,
+        size = 100,
+        strokeWidth = 6,
+        color = "#00f0ff",
+      }) => {
+        const radius = (size - strokeWidth) / 2;
+        const circumference = radius * 2 * Math.PI;
+        const offset =
+          circumference - (Math.min(progress, 100) / 100) * circumference;
+        return (
+          <div
+            className="relative flex items-center justify-center"
+            style={{ width: size, height: size }}
+          >
+            <svg className="transform -rotate-90" width={size} height={size}>
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke="rgba(255,255,255,0.1)"
+                strokeWidth={strokeWidth}
+                fill="none"
+              />
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                fill="none"
+                strokeLinecap="round"
+                style={{
+                  strokeDasharray: circumference,
+                  strokeDashoffset: offset,
+                  transition:
+                    "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)",
+                }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-lg font-bold text-white">
+                {Math.round(Math.min(progress, 100))}%
+              </span>
+            </div>
+          </div>
+        );
+      };
+
+      // ─── Category Icon ─────────────────────────────────────────────
+      const CategoryIcon = ({ categoryId, size = "md" }) => {
+        const cat =
+          CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[6];
+        const sizeClasses = { sm: "w-8 h-8", md: "w-10 h-10", lg: "w-12 h-12" };
+        return (
+          <div
+            className={`${sizeClasses[size]} rounded-xl flex items-center justify-center transition-transform hover:scale-110 hover:rotate-3`}
+            style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+          >
+            <Icon name={cat.icon} className="w-5 h-5" />
+          </div>
+        );
+      };
+
+      // ─── Main App ──────────────────────────────────────────────────
+      const ExpenseTracker = () => {
+        const storedState = loadStoredState();
+        const [expenses, setExpenses] = useState(storedState.expenses);
+        const [showAddModal, setShowAddModal] = useState(false);
+        const [showEditModal, setShowEditModal] = useState(false);
+        const [editingExpense, setEditingExpense] = useState(null);
+        const [activeTab, setActiveTab] = useState(storedState.activeTab);
+        const [timeRange, setTimeRange] = useState(storedState.timeRange);
+        const [chartType, setChartType] = useState(storedState.chartType);
+        const [searchQuery, setSearchQuery] = useState(storedState.searchQuery);
+        const [filterCategory, setFilterCategory] = useState(
+          storedState.filterCategory,
+        );
+        const [sortBy, setSortBy] = useState(storedState.sortBy);
+        const [budget, setBudget] = useState(storedState.budget);
+        const [showBudgetModal, setShowBudgetModal] = useState(false);
+        const [earnedBadges, setEarnedBadges] = useState(
+          storedState.earnedBadges,
+        );
+        const [showBadgeModal, setShowBadgeModal] = useState(false);
+        const [newBadge, setNewBadge] = useState(null);
+        const [streak, setStreak] = useState(storedState.streak);
+        const [showAIInsights, setShowAIInsights] = useState(false);
+        const [aiTyping, setAiTyping] = useState(false);
+        const [aiMessage, setAiMessage] = useState("");
+        const [hideAmounts, setHideAmounts] = useState(storedState.hideAmounts);
+        const [showSettings, setShowSettings] = useState(false);
+        const [notifications, setNotifications] = useState(
+          storedState.notifications,
+        );
+        const [showNotifications, setShowNotifications] = useState(false);
+        const [viewedCharts, setViewedCharts] = useState(new Set());
+        const [expenseForm, setExpenseForm] = useState({
+          amount: "",
+          category: "food",
+          description: "",
+          date: new Date().toISOString().split("T")[0],
+          paymentMethod: "card",
+          recurring: "none",
+          tags: "",
+          location: "",
+        });
+
+        useEffect(() => {
+          saveStoredState({
+            expenses,
+            budget,
+            earnedBadges,
+            streak,
+            hideAmounts,
+            notifications,
+            activeTab,
+            timeRange,
+            chartType,
+            searchQuery,
+            filterCategory,
+            sortBy,
+          });
+        }, [
+          expenses,
+          budget,
+          earnedBadges,
+          streak,
+          hideAmounts,
+          notifications,
+          activeTab,
+          timeRange,
+          chartType,
+          searchQuery,
+          filterCategory,
+          sortBy,
+        ]);
+
+        // Computed values
+        const filteredExpenses = useMemo(() => {
+          let filtered = [...expenses];
+          if (searchQuery) {
+            filtered = filtered.filter(
+              (e) =>
+                e.description
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase()) ||
+                e.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                e.amount.toString().includes(searchQuery),
+            );
+          }
+          if (filterCategory !== "all")
+            filtered = filtered.filter((e) => e.category === filterCategory);
+          const [sortField, sortDir] = sortBy.split("-");
+          filtered.sort((a, b) => {
+            if (sortField === "date")
+              return sortDir === "desc"
+                ? new Date(b.date) - new Date(a.date)
+                : new Date(a.date) - new Date(b.date);
+            if (sortField === "amount")
+              return sortDir === "desc"
+                ? b.amount - a.amount
+                : a.amount - b.amount;
+            return 0;
+          });
+          return filtered;
+        }, [expenses, searchQuery, filterCategory, sortBy]);
+
+        const timeFilteredExpenses = useMemo(() => {
+          const today = new Date();
+          return expenses.filter((e) => {
+            const eDate = new Date(e.date);
+            if (timeRange === "today")
+              return e.date === today.toISOString().split("T")[0];
+            if (timeRange === "week") {
+              const weekAgo = new Date(today);
+              weekAgo.setDate(weekAgo.getDate() - 7);
+              return eDate >= weekAgo;
+            }
+            if (timeRange === "month")
+              return (
+                eDate.getMonth() === today.getMonth() &&
+                eDate.getFullYear() === today.getFullYear()
+              );
+            if (timeRange === "year")
+              return eDate.getFullYear() === today.getFullYear();
+            return true;
+          });
+        }, [expenses, timeRange]);
+
+        const totalSpent = timeFilteredExpenses.reduce(
+          (sum, e) => sum + e.amount,
+          0,
+        );
+        const budgetProgress = (totalSpent / budget) * 100;
+        const todaySpent = expenses
+          .filter((e) => e.date === new Date().toISOString().split("T")[0])
+          .reduce((sum, e) => sum + e.amount, 0);
+
+        const categoryTotals = useMemo(() => {
+          const totals = {};
+          timeFilteredExpenses.forEach((e) => {
+            totals[e.category] = (totals[e.category] || 0) + e.amount;
+          });
+          return Object.entries(totals).sort((a, b) => b[1] - a[1]);
+        }, [timeFilteredExpenses]);
+
+        const dailyData = useMemo(() => {
+          const data = {};
+          const today = new Date();
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            data[d.toISOString().split("T")[0]] = 0;
+          }
+          expenses.forEach((e) => {
+            if (data[e.date] !== undefined) data[e.date] += e.amount;
+          });
+          return Object.entries(data);
+        }, [expenses]);
+
+        const maxDaily = Math.max(...dailyData.map((d) => d[1]), 1);
+
+        // Badge checking
+        const checkBadges = useCallback(() => {
+          const newBadges = [];
+          const usedCategories = new Set(expenses.map((e) => e.category));
+          if (expenses.length >= 1 && !earnedBadges.includes("first"))
+            newBadges.push("first");
+          if (streak >= 3 && !earnedBadges.includes("streak3"))
+            newBadges.push("streak3");
+          if (streak >= 7 && !earnedBadges.includes("streak7"))
+            newBadges.push("streak7");
+          if (streak >= 30 && !earnedBadges.includes("streak30"))
+            newBadges.push("streak30");
+          if (usedCategories.size >= 7 && !earnedBadges.includes("explorer"))
+            newBadges.push("explorer");
+          if (
+            todaySpent < 20 &&
+            expenses.some(
+              (e) => e.date === new Date().toISOString().split("T")[0],
+            ) &&
+            !earnedBadges.includes("thrifty")
+          )
+            newBadges.push("thrifty");
+          if (viewedCharts.size >= 3 && !earnedBadges.includes("analyst"))
+            newBadges.push("analyst");
+          if (newBadges.length > 0) {
+            setEarnedBadges((prev) => [...prev, ...newBadges]);
+            const badge = BADGES.find((b) => b.id === newBadges[0]);
+            if (badge) {
+              setNewBadge(badge);
+              setShowBadgeModal(true);
+              triggerConfetti();
+              addNotification(`New Badge: ${badge.name}!`, "achievement");
+            }
+          }
+        }, [expenses, earnedBadges, streak, todaySpent, viewedCharts]);
+
+        useEffect(() => {
+          checkBadges();
+        }, [expenses, streak]);
+
+        const addNotification = (message, type = "info") => {
+          const id = Date.now();
+          setNotifications((prev) =>
+            [{ id, message, type, time: new Date() }, ...prev].slice(0, 20),
+          );
+        };
+
+        // AI Insights
+        const generateAIInsights = () => {
+          setShowAIInsights(true);
+          setAiTyping(true);
+          setAiMessage("");
+          const insights = [
+            `Your highest spending category is ${CATEGORIES.find((c) => c.id === categoryTotals[0]?.[0])?.name || "Food"} at ${formatCurrency(categoryTotals[0]?.[1] || 0)}.`,
+            `You have spent ${formatCurrency(totalSpent)} this ${timeRange}, which is ${budgetProgress > 100 ? "over" : "within"} your budget.`,
+            `Your daily average is ${formatCurrency(Math.round(totalSpent / 7))}. At this rate, you will spend ${formatCurrency(Math.round((totalSpent / 7) * 30))} this month.`,
+            todaySpent > 100
+              ? "Warning: You have spent quite a bit today. Consider slowing down!"
+              : "Great job keeping todays spending low!",
+            `Top expense: ${expenses[0]?.description || "None"} at ${formatCurrency(expenses[0]?.amount || 0)}.`,
+          ];
+          const fullMessage = insights.join("\n\n");
+          let i = 0;
+          const typeInterval = setInterval(() => {
+            if (i < fullMessage.length) {
+              setAiMessage(fullMessage.slice(0, i + 1));
+              i++;
+            } else {
+              clearInterval(typeInterval);
+              setAiTyping(false);
+            }
+          }, 20);
+        };
+
+        // Handlers
+        const handleAddExpense = () => {
+          if (!expenseForm.amount || !expenseForm.description) return;
+          const newExpense = {
+            id: `exp-${Date.now()}`,
+            amount: parseFloat(expenseForm.amount),
+            category: expenseForm.category,
+            description: expenseForm.description,
+            date: expenseForm.date,
+            paymentMethod: expenseForm.paymentMethod,
+            recurring: expenseForm.recurring,
+            pinned: false,
+            tags: expenseForm.tags
+              ? expenseForm.tags.split(",").map((t) => t.trim())
+              : [],
+            location: expenseForm.location,
+            createdAt: new Date().toISOString(),
+          };
+          setExpenses((prev) => [newExpense, ...prev]);
+          setShowAddModal(false);
+          setExpenseForm({
+            amount: "",
+            category: "food",
+            description: "",
+            date: new Date().toISOString().split("T")[0],
+            paymentMethod: "card",
+            recurring: "none",
+            tags: "",
+            location: "",
+          });
+          triggerConfetti();
+          addNotification(
+            `Added: ${newExpense.description} - ${formatCurrency(newExpense.amount)}`,
+            "success",
+          );
+        };
+
+        const handleEditExpense = () => {
+          if (!editingExpense) return;
+          setExpenses((prev) =>
+            prev.map((e) => (e.id === editingExpense.id ? editingExpense : e)),
+          );
+          setShowEditModal(false);
+          setEditingExpense(null);
+          addNotification("Expense updated successfully!", "success");
+        };
+
+        const handleDeleteExpense = (id) => {
+          setExpenses((prev) => prev.filter((e) => e.id !== id));
+          addNotification("Expense deleted", "info");
+        };
+
+        const handleDuplicate = (expense) => {
+          const newExp = {
+            ...expense,
+            id: `exp-${Date.now()}`,
+            date: new Date().toISOString().split("T")[0],
+          };
+          setExpenses((prev) => [newExp, ...prev]);
+          addNotification("Expense duplicated", "success");
+        };
+
+        const handlePin = (id) => {
+          setExpenses((prev) =>
+            prev.map((e) => (e.id === id ? { ...e, pinned: !e.pinned } : e)),
+          );
+        };
+
+        const handleChartChange = (type) => {
+          setChartType(type);
+          setViewedCharts((prev) => new Set([...prev, type]));
+        };
+
+        const exportData = () => {
+          const dataStr = JSON.stringify(expenses, null, 2);
+          const blob = new Blob([dataStr], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `expenses-${new Date().toISOString().split("T")[0]}.json`;
+          a.click();
+          addNotification("Data exported successfully!", "success");
+        };
+
+        return (
+          <div className="min-h-screen bg-[#0a0a0f] text-white relative overflow-hidden">
+            {/* Background Orbs */}
+            <div className="bg-orb w-[500px] h-[500px] bg-[#bc13fe] top-[-100px] left-[-100px] animate-float" />
+            <div
+              className="bg-orb w-[400px] h-[400px] bg-[#00f0ff] top-[20%] right-[-100px] animate-float"
+              style={{ animationDelay: "2s" }}
+            />
+            <div
+              className="bg-orb w-[350px] h-[350px] bg-[#ff2d95] bottom-[-50px] left-[20%] animate-float"
+              style={{ animationDelay: "4s" }}
+            />
+            <div
+              className="bg-orb w-[300px] h-[300px] bg-[#00ff88] bottom-[20%] right-[20%] animate-float"
+              style={{ animationDelay: "1s" }}
+            />
+
+            <div className="relative z-10 max-w-7xl mx-auto px-4 py-6">
+              {/* Header */}
+              <motion.header
+                initial={{ y: -50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="flex items-center justify-between mb-8"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <Icon name="wallet" className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold gradient-text font-['Space_Grotesk']">
+                      NeonTrack
+                    </h1>
+                    <p className="text-xs text-gray-400">
+                      Daily Expense Tracker
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="glass px-4 py-2 rounded-xl flex items-center gap-2"
+                  >
+                    <Icon name="flame" className="w-5 h-5 text-orange-400" />
+                    <span className="text-sm font-semibold text-orange-400">
+                      {streak} day streak
+                    </span>
+                  </motion.div>
+                  <div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      className="glass w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors relative"
+                    >
+                      <Icon name="bell" className="w-5 h-5 text-gray-300" />
+                      {notifications.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">
+                          {notifications.length}
+                        </span>
+                      )}
+                    </motion.button>
+                    <AnimatePresence>
+                      {showNotifications && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute right-0 top-12 w-80 glass-strong rounded-2xl p-4 z-50"
+                        >
+                          <h3 className="text-sm font-semibold mb-3 text-gray-300">
+                            Notifications
+                          </h3>
+                          <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-hide">
+                            {notifications.length === 0 ? (
+                              <p className="text-xs text-gray-500 text-center py-4">
+                                No notifications yet
+                              </p>
+                            ) : (
+                              notifications.map((n) => (
+                                <div
+                                  key={n.id}
+                                  className="flex items-start gap-2 p-2 rounded-lg bg-white/5 text-xs"
+                                >
+                                  <div
+                                    className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${n.type === "success" ? "bg-green-400" : n.type === "achievement" ? "bg-yellow-400" : "bg-blue-400"}`}
+                                  />
+                                  <span className="text-gray-300">
+                                    {n.message}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="glass w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    <Icon name="settings" className="w-5 h-5 text-gray-300" />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setHideAmounts(!hideAmounts)}
+                    className="glass w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    <Icon
+                      name={hideAmounts ? "eyeOff" : "eye"}
+                      className="w-5 h-5 text-gray-300"
+                    />
+                  </motion.button>
+                </div>
+              </motion.header>
+
+              {/* Settings Panel */}
+              <AnimatePresence>
+                {showSettings && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="glass rounded-2xl p-6 mb-6 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Settings</h3>
+                      <button
+                        onClick={() => setShowSettings(false)}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <Icon name="close" className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm text-gray-400 mb-2 block">
+                          Monthly Budget
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={budget}
+                            onChange={(e) => setBudget(Number(e.target.value))}
+                            className="glass px-4 py-2 rounded-xl text-white w-full"
+                            placeholder="2000"
+                          />
+                          <button
+                            onClick={() => setShowBudgetModal(false)}
+                            className="glass px-4 py-2 rounded-xl hover:bg-white/10 text-cyan-400"
+                          >
+                            <Icon name="check" className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-400 mb-2 block">
+                          Data
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={exportData}
+                            className="glass px-4 py-2 rounded-xl hover:bg-white/10 text-cyan-400 text-sm flex items-center gap-2"
+                          >
+                            <Icon name="export" className="w-4 h-4" /> Export
+                            JSON
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-400 mb-2 block">
+                          Privacy
+                        </label>
+                        <button
+                          onClick={() => setHideAmounts(!hideAmounts)}
+                          className="glass px-4 py-2 rounded-xl hover:bg-white/10 text-sm flex items-center gap-2"
+                        >
+                          <Icon
+                            name={hideAmounts ? "eyeOff" : "eye"}
+                            className="w-4 h-4"
+                          />{" "}
+                          {hideAmounts ? "Show Amounts" : "Hide Amounts"}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Navigation Tabs */}
+              <motion.nav
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="flex gap-1 mb-8 glass rounded-2xl p-2 overflow-x-auto"
+              >
+                {[
+                  { id: "dashboard", label: "Dashboard", icon: "grid" },
+                  { id: "expenses", label: "Expenses", icon: "list" },
+                  { id: "analytics", label: "Analytics", icon: "chart" },
+                  { id: "badges", label: "Badges", icon: "trophy" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`tab-btn flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "active bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}
+                  >
+                    <Icon name={tab.icon} className="w-4 h-4" /> {tab.label}
+                  </button>
+                ))}
+              </motion.nav>
+
+              {/* Time Range Selector */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="flex gap-2 mb-6 overflow-x-auto pb-2"
+              >
+                {["today", "week", "month", "year", "all"].map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize ${timeRange === range ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/20" : "glass text-gray-400 hover:text-white"}`}
+                  >
+                    {range === "all" ? "All Time" : range}
+                  </button>
+                ))}
+              </motion.div>
+
+              {/* DASHBOARD TAB */}
+              {activeTab === "dashboard" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      className="glass rounded-2xl p-6 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                          <Icon
+                            name="dollar"
+                            className="w-5 h-5 text-cyan-400"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-400">
+                          Total Spent
+                        </span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">
+                        {hideAmounts ? (
+                          "****"
+                        ) : (
+                          <AnimatedCounter value={totalSpent} prefix="₹" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-2 text-xs text-green-400">
+                        <Icon name="arrowDown" className="w-3 h-3" />{" "}
+                        <span>vs last period</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      className="glass rounded-2xl p-6 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                          <Icon
+                            name="calendar"
+                            className="w-5 h-5 text-purple-400"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-400">Today</span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">
+                        {hideAmounts ? (
+                          "****"
+                        ) : (
+                          <AnimatedCounter value={todaySpent} prefix="₹" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                        <span>
+                          {
+                            expenses.filter(
+                              (e) =>
+                                e.date ===
+                                new Date().toISOString().split("T")[0],
+                            ).length
+                          }{" "}
+                          transactions
+                        </span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      className="glass rounded-2xl p-6 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+                          <Icon
+                            name="receipt"
+                            className="w-5 h-5 text-pink-400"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-400">
+                          Transactions
+                        </span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">
+                        <AnimatedCounter value={timeFilteredExpenses.length} />
+                      </div>
+                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                        <span>in selected period</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      className="glass rounded-2xl p-6 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                          <Icon
+                            name="piggy"
+                            className="w-5 h-5 text-green-400"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-400">
+                          Budget Left
+                        </span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">
+                        {hideAmounts ? (
+                          "****"
+                        ) : (
+                          <AnimatedCounter
+                            value={Math.max(budget - totalSpent, 0)}
+                            prefix="₹"
+                          />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                        <span>of {formatCurrency(budget)}</span>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Main Content Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Budget Progress */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="glass rounded-2xl p-6"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">
+                          Budget Progress
+                        </h3>
+                        <button
+                          onClick={() => setShowBudgetModal(true)}
+                          className="text-cyan-400 hover:text-cyan-300 text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-center mb-4">
+                        <ProgressRing
+                          progress={budgetProgress}
+                          size={140}
+                          strokeWidth={10}
+                          color={
+                            budgetProgress > 100
+                              ? "#ff2d95"
+                              : budgetProgress > 80
+                                ? "#ff9500"
+                                : "#00f0ff"
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Spent</span>
+                          <span className="font-semibold">
+                            {hideAmounts ? "****" : formatCurrency(totalSpent)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Budget</span>
+                          <span className="font-semibold">
+                            {hideAmounts ? "****" : formatCurrency(budget)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Remaining</span>
+                          <span
+                            className={`font-semibold ${budget - totalSpent < 0 ? "text-red-400" : "text-green-400"}`}
+                          >
+                            {hideAmounts
+                              ? "****"
+                              : formatCurrency(budget - totalSpent)}
+                          </span>
+                        </div>
+                      </div>
+                      {budgetProgress > 100 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-center gap-2"
+                        >
+                          <Icon name="flame" className="w-4 h-4" /> You have
+                          exceeded your budget!
+                        </motion.div>
+                      )}
+                    </motion.div>
+
+                    {/* Daily Spending Chart */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="glass rounded-2xl p-6 lg:col-span-2"
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold">
+                          Daily Spending (Last 7 Days)
+                        </h3>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleChartChange("bar")}
+                            className={`p-2 rounded-lg ${chartType === "bar" ? "bg-white/10" : ""}`}
+                          >
+                            <Icon
+                              name="barChart"
+                              className="w-4 h-4 text-gray-400"
+                            />
+                          </button>
+                          <button
+                            onClick={() => handleChartChange("line")}
+                            className={`p-2 rounded-lg ${chartType === "line" ? "bg-white/10" : ""}`}
+                          >
+                            <Icon
+                              name="lineChart"
+                              className="w-4 h-4 text-gray-400"
+                            />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-end justify-between h-48 gap-2">
+                        {dailyData.map(([date, amount], i) => {
+                          const dayName = new Date(date).toLocaleDateString(
+                            "en-US",
+                            { weekday: "short" },
+                          );
+                          const height = (amount / maxDaily) * 100;
+                          return (
+                            <div
+                              key={date}
+                              className="flex flex-col items-center flex-1"
+                            >
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${Math.max(height, 4)}%` }}
+                                transition={{
+                                  delay: i * 0.1,
+                                  duration: 0.6,
+                                  ease: "easeOut",
+                                }}
+                                className="w-full max-w-[60px] rounded-t-xl bg-gradient-to-t from-cyan-500/50 to-cyan-400/80 relative group cursor-pointer"
+                                style={{ minHeight: "4px" }}
+                              >
+                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 glass px-2 py-1 rounded-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                  {hideAmounts
+                                    ? "****"
+                                    : formatCurrency(amount)}
+                                </div>
+                              </motion.div>
+                              <span className="text-xs text-gray-500 mt-2">
+                                {dayName}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Category Breakdown */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="glass rounded-2xl p-6 mt-6"
+                  >
+                    <h3 className="text-lg font-semibold mb-4">
+                      Category Breakdown
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {categoryTotals.map(([catId, amount]) => {
+                        const cat = CATEGORIES.find((c) => c.id === catId);
+                        const percentage = (amount / totalSpent) * 100;
+                        return (
+                          <motion.div
+                            key={catId}
+                            whileHover={{ scale: 1.02 }}
+                            className="glass rounded-xl p-4 flex items-center gap-4"
+                          >
+                            <CategoryIcon categoryId={catId} size="md" />
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm font-medium">
+                                  {cat?.name}
+                                </span>
+                                <span className="text-sm font-bold">
+                                  {hideAmounts
+                                    ? "****"
+                                    : formatCurrency(amount)}
+                                </span>
+                              </div>
+                              <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${percentage}%` }}
+                                  transition={{ duration: 1, ease: "easeOut" }}
+                                  className="h-full rounded-full"
+                                  style={{ backgroundColor: cat?.color }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-500 mt-1">
+                                {percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+
+                  {/* Quick Actions */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowAddModal(true)}
+                      className="glass rounded-2xl p-4 flex flex-col items-center gap-2 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+                        <Icon name="plus" className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">Add Expense</span>
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={generateAIInsights}
+                      className="glass rounded-2xl p-4 flex flex-col items-center gap-2 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Icon name="ai" className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">AI Insights</span>
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setActiveTab("analytics")}
+                      className="glass rounded-2xl p-4 flex flex-col items-center gap-2 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                        <Icon name="chart" className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">Analytics</span>
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setActiveTab("badges")}
+                      className="glass rounded-2xl p-4 flex flex-col items-center gap-2 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500 flex items-center justify-center">
+                        <Icon name="trophy" className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">Badges</span>
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* EXPENSES TAB */}
+              {activeTab === "expenses" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  {/* Search & Filter Bar */}
+                  <div className="glass rounded-2xl p-4 mb-6">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 relative">
+                        <Icon
+                          name="search"
+                          className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                        />
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search expenses..."
+                          className="w-full glass pl-10 pr-4 py-3 rounded-xl text-white placeholder-gray-500"
+                        />
+                      </div>
+                      <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="glass px-4 py-3 rounded-xl text-white text-sm"
+                      >
+                        <option value="all" className="bg-[#1a1a2e]">
+                          All Categories
+                        </option>
+                        {CATEGORIES.map((c) => (
+                          <option
+                            key={c.id}
+                            value={c.id}
+                            className="bg-[#1a1a2e]"
+                          >
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="glass px-4 py-3 rounded-xl text-white text-sm"
+                      >
+                        <option value="date-desc" className="bg-[#1a1a2e]">
+                          Newest First
+                        </option>
+                        <option value="date-asc" className="bg-[#1a1a2e]">
+                          Oldest First
+                        </option>
+                        <option value="amount-desc" className="bg-[#1a1a2e]">
+                          Highest Amount
+                        </option>
+                        <option value="amount-asc" className="bg-[#1a1a2e]">
+                          Lowest Amount
+                        </option>
+                      </select>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowAddModal(true)}
+                        className="bg-gradient-to-r from-cyan-500 to-purple-500 px-6 py-3 rounded-xl text-white font-medium flex items-center gap-2 shadow-lg shadow-cyan-500/20"
+                      >
+                        <Icon name="plus" className="w-5 h-5" /> Add
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  {/* Expenses List */}
+                  <div className="space-y-3">
+                    <AnimatePresence>
+                      {filteredExpenses.length === 0 ? (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="glass rounded-2xl p-12 text-center"
+                        >
+                          <Icon
+                            name="search"
+                            className="w-12 h-12 text-gray-600 mx-auto mb-4"
+                          />
+                          <p className="text-gray-400 text-lg">
+                            No expenses found
+                          </p>
+                          <p className="text-gray-600 text-sm mt-1">
+                            Try adjusting your filters or add a new expense
+                          </p>
+                        </motion.div>
+                      ) : (
+                        filteredExpenses.map((expense, index) => {
+                          const cat = CATEGORIES.find(
+                            (c) => c.id === expense.category,
+                          );
+                          return (
+                            <motion.div
+                              key={expense.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ delay: index * 0.03 }}
+                              className="expense-card glass rounded-2xl p-4 flex items-center gap-4 group"
+                            >
+                              <CategoryIcon
+                                categoryId={expense.category}
+                                size="md"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-white truncate">
+                                    {expense.description}
+                                  </h4>
+                                  {expense.pinned && (
+                                    <Icon
+                                      name="pin"
+                                      className="w-3 h-3 text-cyan-400"
+                                    />
+                                  )}
+                                  {expense.recurring !== "none" && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                                      {expense.recurring}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                  <span>{formatDate(expense.date)}</span>
+                                  <span>•</span>
+                                  <span>{cat?.name}</span>
+                                  {expense.location && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="flex items-center gap-1">
+                                        <Icon
+                                          name="location"
+                                          className="w-3 h-3"
+                                        />
+                                        {expense.location}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-lg font-bold text-white">
+                                  {hideAmounts
+                                    ? "****"
+                                    : formatCurrency(expense.amount)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {
+                                    PAYMENT_METHODS.find(
+                                      (p) => p.id === expense.paymentMethod,
+                                    )?.icon
+                                  }{" "}
+                                  {
+                                    PAYMENT_METHODS.find(
+                                      (p) => p.id === expense.paymentMethod,
+                                    )?.name
+                                  }
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handlePin(expense.id)}
+                                  className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-cyan-400"
+                                >
+                                  <Icon
+                                    name={expense.pinned ? "unpin" : "pin"}
+                                    className="w-4 h-4"
+                                  />
+                                </button>
+                                <button
+                                  onClick={() => handleDuplicate(expense)}
+                                  className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-green-400"
+                                >
+                                  <Icon name="duplicate" className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingExpense(expense);
+                                    setShowEditModal(true);
+                                  }}
+                                  className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-blue-400"
+                                >
+                                  <Icon name="edit" className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteExpense(expense.id)
+                                  }
+                                  className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400"
+                                >
+                                  <Icon name="trash" className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          );
+                        })
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ANALYTICS TAB */}
+              {activeTab === "analytics" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Doughnut Chart */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="glass rounded-2xl p-6"
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold">
+                          Spending by Category
+                        </h3>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleChartChange("doughnut")}
+                            className={`p-2 rounded-lg ${chartType === "doughnut" ? "bg-white/10" : ""}`}
+                          >
+                            <Icon
+                              name="pieChart"
+                              className="w-4 h-4 text-gray-400"
+                            />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <svg width="240" height="240" viewBox="0 0 240 240">
+                          {(() => {
+                            let currentAngle = 0;
+                            const total = categoryTotals.reduce(
+                              (sum, [, amount]) => sum + amount,
+                              0,
+                            );
+                            return categoryTotals.map(([catId, amount]) => {
+                              const cat = CATEGORIES.find(
+                                (c) => c.id === catId,
+                              );
+                              const percentage = (amount / total) * 100;
+                              const angle = (percentage / 100) * 360;
+                              const startAngle = currentAngle;
+                              currentAngle += angle;
+                              const endAngle = currentAngle;
+                              const largeArc = angle > 180 ? 1 : 0;
+                              const startRad =
+                                ((startAngle - 90) * Math.PI) / 180;
+                              const endRad = ((endAngle - 90) * Math.PI) / 180;
+                              const x1 = 120 + 80 * Math.cos(startRad);
+                              const y1 = 120 + 80 * Math.sin(startRad);
+                              const x2 = 120 + 80 * Math.cos(endRad);
+                              const y2 = 120 + 80 * Math.sin(endRad);
+                              return (
+                                <motion.path
+                                  key={catId}
+                                  d={`M 120 120 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                  fill={cat?.color}
+                                  initial={{ opacity: 0, scale: 0 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ delay: 0.1 }}
+                                  className="hover:opacity-80 cursor-pointer"
+                                />
+                              );
+                            });
+                          })()}
+                          <circle
+                            cx="120"
+                            cy="120"
+                            r="50"
+                            fill="rgba(10,10,15,0.9)"
+                          />
+                          <text
+                            x="120"
+                            y="115"
+                            textAnchor="middle"
+                            fill="white"
+                            fontSize="14"
+                            fontWeight="bold"
+                          >
+                            {hideAmounts ? "****" : formatCurrency(totalSpent)}
+                          </text>
+                          <text
+                            x="120"
+                            y="135"
+                            textAnchor="middle"
+                            fill="#666"
+                            fontSize="10"
+                          >
+                            Total
+                          </text>
+                        </svg>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        {categoryTotals.map(([catId, amount]) => {
+                          const cat = CATEGORIES.find((c) => c.id === catId);
+                          const percentage = (
+                            (amount / totalSpent) *
+                            100
+                          ).toFixed(1);
+                          return (
+                            <div
+                              key={catId}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: cat?.color }}
+                                />
+                                <span className="text-gray-300">
+                                  {cat?.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-gray-500">
+                                  {percentage}%
+                                </span>
+                                <span className="font-medium">
+                                  {hideAmounts
+                                    ? "****"
+                                    : formatCurrency(amount)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+
+                    {/* Trend Analysis */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="glass rounded-2xl p-6"
+                    >
+                      <h3 className="text-lg font-semibold mb-6">
+                        Spending Trends
+                      </h3>
+                      <div className="space-y-4">
+                        {dailyData.map(([date, amount], i) => {
+                          const dayName = new Date(date).toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          );
+                          const prevAmount =
+                            i > 0 ? dailyData[i - 1][1] : amount;
+                          const change =
+                            prevAmount > 0
+                              ? ((amount - prevAmount) / prevAmount) * 100
+                              : 0;
+                          return (
+                            <div key={date} className="flex items-center gap-4">
+                              <span className="text-xs text-gray-500 w-20">
+                                {dayName}
+                              </span>
+                              <div className="flex-1 h-8 bg-white/5 rounded-lg overflow-hidden relative">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{
+                                    width: `${(amount / maxDaily) * 100}%`,
+                                  }}
+                                  transition={{ delay: i * 0.1, duration: 0.6 }}
+                                  className="h-full rounded-lg bg-gradient-to-r from-cyan-500/50 to-purple-500/50"
+                                />
+                              </div>
+                              <div className="w-24 text-right">
+                                <span className="text-sm font-medium">
+                                  {hideAmounts
+                                    ? "****"
+                                    : formatCurrency(amount)}
+                                </span>
+                                {change !== 0 && (
+                                  <span
+                                    className={`text-xs ml-2 ${change > 0 ? "text-red-400" : "text-green-400"}`}
+                                  >
+                                    {change > 0 ? "+" : ""}
+                                    {change.toFixed(0)}%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+
+                    {/* Payment Methods */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="glass rounded-2xl p-6"
+                    >
+                      <h3 className="text-lg font-semibold mb-4">
+                        Payment Methods
+                      </h3>
+                      <div className="space-y-3">
+                        {PAYMENT_METHODS.map((method) => {
+                          const methodTotal = timeFilteredExpenses
+                            .filter((e) => e.paymentMethod === method.id)
+                            .reduce((sum, e) => sum + e.amount, 0);
+                          const percentage =
+                            totalSpent > 0
+                              ? (methodTotal / totalSpent) * 100
+                              : 0;
+                          return (
+                            <div
+                              key={method.id}
+                              className="flex items-center gap-4"
+                            >
+                              <span className="text-2xl">{method.icon}</span>
+                              <div className="flex-1">
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-sm text-gray-300">
+                                    {method.name}
+                                  </span>
+                                  <span className="text-sm font-medium">
+                                    {hideAmounts
+                                      ? "****"
+                                      : formatCurrency(methodTotal)}
+                                  </span>
+                                </div>
+                                <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${percentage}%` }}
+                                    transition={{ duration: 0.8 }}
+                                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-xs text-gray-500 w-12 text-right">
+                                {percentage.toFixed(0)}%
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+
+                    {/* Top Expenses */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="glass rounded-2xl p-6"
+                    >
+                      <h3 className="text-lg font-semibold mb-4">
+                        Top Expenses
+                      </h3>
+                      <div className="space-y-3">
+                        {[...timeFilteredExpenses]
+                          .sort((a, b) => b.amount - a.amount)
+                          .slice(0, 5)
+                          .map((expense, i) => {
+                            const cat = CATEGORIES.find(
+                              (c) => c.id === expense.category,
+                            );
+                            return (
+                              <motion.div
+                                key={expense.id}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                                className="flex items-center gap-3 p-3 rounded-xl bg-white/5"
+                              >
+                                <div
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
+                                  style={{
+                                    backgroundColor: `${cat?.color}20`,
+                                    color: cat?.color,
+                                  }}
+                                >
+                                  {i + 1}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">
+                                    {expense.description}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {cat?.name}
+                                  </p>
+                                </div>
+                                <span className="font-bold">
+                                  {hideAmounts
+                                    ? "****"
+                                    : formatCurrency(expense.amount)}
+                                </span>
+                              </motion.div>
+                            );
+                          })}
+                      </div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* BADGES TAB */}
+              {activeTab === "badges" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <div className="glass rounded-2xl p-6 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl font-bold gradient-text">
+                          Your Achievements
+                        </h3>
+                        <p className="text-gray-400 text-sm mt-1">
+                          {earnedBadges.length} of {BADGES.length} badges earned
+                        </p>
+                      </div>
+                      <div className="w-20 h-20 relative">
+                        <ProgressRing
+                          progress={(earnedBadges.length / BADGES.length) * 100}
+                          size={80}
+                          color="#ffd700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {BADGES.map((badge, i) => {
+                      const isEarned = earnedBadges.includes(badge.id);
+                      return (
+                        <motion.div
+                          key={badge.id}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: i * 0.05 }}
+                          className={`glass rounded-2xl p-6 flex flex-col items-center text-center transition-all ${isEarned ? "" : "opacity-40 grayscale"}`}
+                          style={
+                            isEarned
+                              ? { boxShadow: `0 0 20px ${badge.color}30` }
+                              : {}
+                          }
+                        >
+                          <div
+                            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                            style={{
+                              backgroundColor: isEarned
+                                ? `${badge.color}20`
+                                : "rgba(255,255,255,0.05)",
+                              color: isEarned ? badge.color : "#666",
+                            }}
+                          >
+                            <Icon name={badge.icon} className="w-8 h-8" />
+                          </div>
+                          <h4 className="font-semibold text-sm mb-1">
+                            {badge.name}
+                          </h4>
+                          <p className="text-xs text-gray-500">{badge.desc}</p>
+                          {isEarned && (
+                            <div className="mt-2 flex gap-0.5">
+                              <Icon
+                                name="star"
+                                className="w-3 h-3 text-yellow-400"
+                              />
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Floating Add Button */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowAddModal(true)}
+                className="fixed bottom-8 right-8 w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-cyan-500/30 z-50 hover:shadow-cyan-500/50 transition-shadow"
+              >
+                <Icon name="plus" className="w-8 h-8 text-white" />
+              </motion.button>
+
+              {/* Add Expense Modal */}
+              <AnimatePresence>
+                {showAddModal && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowAddModal(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                      className="glass-strong rounded-3xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-2xl font-bold gradient-text">
+                          Add Expense
+                        </h2>
+                        <button
+                          onClick={() => setShowAddModal(false)}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <Icon name="close" className="w-6 h-6" />
+                        </button>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm text-gray-400 mb-2 block">
+                            Amount
+                          </label>
+                          <input
+                            type="number"
+                            value={expenseForm.amount}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                amount: e.target.value,
+                              })
+                            }
+                            placeholder="0.00"
+                            className="w-full glass px-4 py-3 rounded-xl text-white text-2xl font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-gray-400 mb-2 block">
+                            Description
+                          </label>
+                          <input
+                            type="text"
+                            value={expenseForm.description}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                description: e.target.value,
+                              })
+                            }
+                            placeholder="What did you spend on?"
+                            className="w-full glass px-4 py-3 rounded-xl text-white"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                              Category
+                            </label>
+                            <select
+                              value={expenseForm.category}
+                              onChange={(e) =>
+                                setExpenseForm({
+                                  ...expenseForm,
+                                  category: e.target.value,
+                                })
+                              }
+                              className="w-full glass px-4 py-3 rounded-xl text-white"
+                            >
+                              {CATEGORIES.map((c) => (
+                                <option
+                                  key={c.id}
+                                  value={c.id}
+                                  className="bg-[#1a1a2e]"
+                                >
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                              Date
+                            </label>
+                            <input
+                              type="date"
+                              value={expenseForm.date}
+                              onChange={(e) =>
+                                setExpenseForm({
+                                  ...expenseForm,
+                                  date: e.target.value,
+                                })
+                              }
+                              className="w-full glass px-4 py-3 rounded-xl text-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                              Payment Method
+                            </label>
+                            <select
+                              value={expenseForm.paymentMethod}
+                              onChange={(e) =>
+                                setExpenseForm({
+                                  ...expenseForm,
+                                  paymentMethod: e.target.value,
+                                })
+                              }
+                              className="w-full glass px-4 py-3 rounded-xl text-white"
+                            >
+                              {PAYMENT_METHODS.map((p) => (
+                                <option
+                                  key={p.id}
+                                  value={p.id}
+                                  className="bg-[#1a1a2e]"
+                                >
+                                  {p.icon} {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                              Recurring
+                            </label>
+                            <select
+                              value={expenseForm.recurring}
+                              onChange={(e) =>
+                                setExpenseForm({
+                                  ...expenseForm,
+                                  recurring: e.target.value,
+                                })
+                              }
+                              className="w-full glass px-4 py-3 rounded-xl text-white"
+                            >
+                              {RECURRING_OPTIONS.map((r) => (
+                                <option
+                                  key={r.id}
+                                  value={r.id}
+                                  className="bg-[#1a1a2e]"
+                                >
+                                  {r.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm text-gray-400 mb-2 block">
+                            Tags (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={expenseForm.tags}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                tags: e.target.value,
+                              })
+                            }
+                            placeholder="important, work, personal..."
+                            className="w-full glass px-4 py-3 rounded-xl text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-gray-400 mb-2 block">
+                            Location
+                          </label>
+                          <input
+                            type="text"
+                            value={expenseForm.location}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                location: e.target.value,
+                              })
+                            }
+                            placeholder="City, State"
+                            className="w-full glass px-4 py-3 rounded-xl text-white"
+                          />
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleAddExpense}
+                          className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold text-lg shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-shadow"
+                        >
+                          Add Expense
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Edit Expense Modal */}
+              <AnimatePresence>
+                {showEditModal && editingExpense && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowEditModal(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                      className="glass-strong rounded-3xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-2xl font-bold gradient-text">
+                          Edit Expense
+                        </h2>
+                        <button
+                          onClick={() => setShowEditModal(false)}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <Icon name="close" className="w-6 h-6" />
+                        </button>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm text-gray-400 mb-2 block">
+                            Amount
+                          </label>
+                          <input
+                            type="number"
+                            value={editingExpense.amount}
+                            onChange={(e) =>
+                              setEditingExpense({
+                                ...editingExpense,
+                                amount: Number(e.target.value),
+                              })
+                            }
+                            className="w-full glass px-4 py-3 rounded-xl text-white text-2xl font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-gray-400 mb-2 block">
+                            Description
+                          </label>
+                          <input
+                            type="text"
+                            value={editingExpense.description}
+                            onChange={(e) =>
+                              setEditingExpense({
+                                ...editingExpense,
+                                description: e.target.value,
+                              })
+                            }
+                            className="w-full glass px-4 py-3 rounded-xl text-white"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                              Category
+                            </label>
+                            <select
+                              value={editingExpense.category}
+                              onChange={(e) =>
+                                setEditingExpense({
+                                  ...editingExpense,
+                                  category: e.target.value,
+                                })
+                              }
+                              className="w-full glass px-4 py-3 rounded-xl text-white"
+                            >
+                              {CATEGORIES.map((c) => (
+                                <option
+                                  key={c.id}
+                                  value={c.id}
+                                  className="bg-[#1a1a2e]"
+                                >
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                              Date
+                            </label>
+                            <input
+                              type="date"
+                              value={editingExpense.date}
+                              onChange={(e) =>
+                                setEditingExpense({
+                                  ...editingExpense,
+                                  date: e.target.value,
+                                })
+                              }
+                              className="w-full glass px-4 py-3 rounded-xl text-white"
+                            />
+                          </div>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleEditExpense}
+                          className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold text-lg shadow-lg shadow-cyan-500/20"
+                        >
+                          Save Changes
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Badge Unlock Modal */}
+              <AnimatePresence>
+                {showBadgeModal && newBadge && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowBadgeModal(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
+                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                      exit={{ scale: 0.5, opacity: 0, rotate: 10 }}
+                      className="glass-strong rounded-3xl p-12 w-full max-w-md text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <motion.div
+                        initial={{ y: -20 }}
+                        animate={{ y: 0 }}
+                        transition={{ delay: 0.2, type: "spring" }}
+                        className="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6"
+                        style={{
+                          backgroundColor: `${newBadge.color}20`,
+                          boxShadow: `0 0 40px ${newBadge.color}40`,
+                        }}
+                      >
+                        <Icon
+                          name={newBadge.icon}
+                          className="w-12 h-12"
+                          style={{ color: newBadge.color }}
+                        />
+                      </motion.div>
+                      <motion.h2
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-3xl font-bold mb-2"
+                        style={{ color: newBadge.color }}
+                      >
+                        {newBadge.name}
+                      </motion.h2>
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-gray-400 mb-8"
+                      >
+                        {newBadge.desc}
+                      </motion.p>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowBadgeModal(false)}
+                        className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold shadow-lg shadow-cyan-500/20"
+                      >
+                        Awesome!
+                      </motion.button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* AI Insights Modal */}
+              <AnimatePresence>
+                {showAIInsights && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowAIInsights(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                      className="glass-strong rounded-3xl p-8 w-full max-w-lg"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                          <Icon name="ai" className="w-6 h-6 text-white" />
+                        </div>
+                        <h2 className="text-xl font-bold gradient-text">
+                          AI Insights
+                        </h2>
+                      </div>
+                      <div className="glass rounded-2xl p-6 min-h-[200px]">
+                        <div className="text-sm text-gray-300 whitespace-pre-line leading-relaxed">
+                          {aiMessage || "Analyzing your spending patterns..."}
+                          {aiTyping && <span className="animate-pulse">|</span>}
+                        </div>
+                      </div>
+                      <div className="flex justify-end mt-4">
+                        <button
+                          onClick={() => setShowAIInsights(false)}
+                          className="px-6 py-2 rounded-xl glass hover:bg-white/10 text-sm"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<ExpenseTracker />);
+    </script>
+  </body>
+</html>
